@@ -4,7 +4,7 @@
 # @Author  : shanfenglan
 # @File    : web_title.py
 # @Software: PyCharm
-import argparse
+import argparse,netaddr
 import re,requests,threading,time,os
 import sys
 
@@ -19,12 +19,12 @@ class wt():
         self.semphore = threading.Semaphore(20)
     def run(self,listt):
         try:
+            self.lock.acquire()
             self.pattern = '<title>(.*?)</title>'
-            response = requests.get(listt).text
+            response = requests.get(listt,timeout=3).text
             title = re.findall(self.pattern, response)
             ccc = listt + '{**}'+title[0]
             self.result.append(ccc)
-            self.lock.acquire()
             print(ccc)
             self.lock.release()
         except:
@@ -34,7 +34,7 @@ class wt():
             else:
                 print("\033[1;31;40m"+'[--]'+listt+'------>      http协议访问失败'+"\033[0m")
                 pass
-
+            self.lock.release()
     def generate_thread(self):
         for i in range(len(self.url_list)):
             thread = threading.Thread(target=self.run,kwargs={"listt":self.url_list[i]})
@@ -67,10 +67,11 @@ def parser_error(errmsg):
 
 def parse_args():
     # parse the arguments
-    parser = argparse.ArgumentParser(epilog='\tExample: \r\npython ' + sys.argv[0] + " -d google.com")
+    parser = argparse.ArgumentParser(epilog='\tExample: \r\npython ' + sys.argv[0] + " -l 1.txt")
     parser.error = parser_error  # rewrite function
     parser._optionals.title = "OPTIONS"
-    parser.add_argument('-l', '--list', dest='list', nargs=1, help='ip list')
+    parser.add_argument('-l', '--list', dest='list', nargs=1, help='ip list file,the content was supported CIDR')
+    # parser.add_argument('-i', '--ip', dest='ip', nargs=1, help='ip list')
     return parser.parse_args()
 
 
@@ -99,16 +100,26 @@ if __name__ == '__main__':
         ress = [res, res1]
         return ress
 
-
     with open(pwd, 'r') as temporary_file:
+        ipArray = []
         for i in temporary_file:
             try:
                 if int(i.split('.')[0]) < 255:
                     i = i.strip("\n")
-                    i = manipulate(i)
-                    list.extend(i)
+                    # i = manipulate(i)
+                    list.append(i)
             except:
                 pass
+    # print(list)
+    ipArray = []
+    for i in list:  # data processing
+        ipArray.extend([str(i) for i in netaddr.IPNetwork(i)])
+    list = ipArray
+    aaa = []
+    for i in list:
+        i = manipulate(i)
+        aaa.extend(i)
+    list = aaa
     # -------------------------#
 
     parse_args()
